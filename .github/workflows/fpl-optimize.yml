@@ -21,3 +21,15 @@ jobs:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
           FPL_API_TOKEN: ${{ secrets.FPL_API_TOKEN }}
         run: python fpl_optimizer.py
+      - name: Run optimizer
+        env:
+          FPL_API_TOKEN: ${{ secrets.FPL_API_TOKEN }}
+        run: python fpl_optimizer.py
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: fpl-results
+          path: |
+            transfer_plan.csv
+            best_possible_xi.csv
