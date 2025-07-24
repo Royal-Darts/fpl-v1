@@ -3,3 +3,4 @@ requests
 pulp
 aiohttp
 nest_asyncio
+openpyxl
