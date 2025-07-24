@@ -40,8 +40,10 @@ def fetch_user_team(team_id=None):
     player_names = [extract_player_name(cell) for cell in player_cells if extract_player_name(cell)]
 
     # Map names to FPL element IDs using the latest FPL bootstrap-static
-    fpl_data = pd.read_json("https://fantasy.premierleague.com/api/bootstrap-static/")
-    fpl_players = pd.DataFrame(fpl_data['elements'])
+    import requests
+...
+fpl_data = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/").json()
+fpl_players = pd.DataFrame(fpl_data['elements'])
 
     squad_ids = []
     for name in player_names:
