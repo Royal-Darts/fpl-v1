@@ -2,19 +2,20 @@
 
 ## 1. Google Sheets Setup
 
-- Already completed: Sheet shared with Google Service Account, Google Sheets API/Drive API enabled.
+- Sheet shared with Google Service Account, Google Sheets API/Drive API enabled.
 
-## 2. FPL Session Cookie Setup
+## 2. FPL API Token Setup
 
-To fetch your actual team, you need your **session cookie** (`PL_PROFILE`) from FPL:
-1. Log into [https://fantasy.premierleague.com/](https://fantasy.premierleague.com/) in Chrome.
-2. Right-click > Inspect > Application tab > Storage > Cookies > fantasy.premierleague.com
-3. Find `PL_PROFILE` (copy the value, it's a long string).
-4. In your repo, go to **Settings > Secrets > Actions > New repository secret**
-    - Name: `FPL_SESSION_COOKIE`
-    - Value: (paste the full cookie value, no spaces, no quotes)
+To fetch your actual team, you need your **x-api-authorization Bearer token**:
+1. Log into [https://fantasy.premierleague.com/](https://fantasy.premierleague.com/) in your browser.
+2. Open Dev Tools > Network tab.
+3. Reload the page and look for an API call (e.g., `/api/my-team/410700/`).
+4. Click the request, and in Request Headers, copy the value after `x-api-authorization: Bearer ` (it's a long string).
+5. In your repo, go to **Settings > Secrets > Actions > New repository secret**
+    - Name: `FPL_API_TOKEN`
+    - Value: (paste the full Bearer token)
 
-**NEVER share your cookie or commit it to code.**
+**Do NOT share your token or commit it to code.**
 
 ## 3. Push All Code
 
@@ -37,7 +38,7 @@ To fetch your actual team, you need your **session cookie** (`PL_PROFILE`) from 
 ## 7. FAQ
 
 - **Q: Workflow fails?**
-    - Check secrets: both `GOOGLE_CREDENTIALS` and `FPL_SESSION_COOKIE` must be present.
+    - Check secrets: both `GOOGLE_CREDENTIALS` and `FPL_API_TOKEN` must be present.
     - Double-check Google Sheet sharing.
     - Paste error in chat for help.
 
