@@ -14,14 +14,29 @@ def fetch_fpl_data():
     positions = pd.DataFrame(data['element_types'])
     return players, teams, positions
 
-def merge_fplreview(players, fplreview_df):
-    # fplreview: id, web_name, xPts, mins, etc. "id" matches "id" in FPL API
-    players = players.copy()
-    merged = pd.merge(players, fplreview_df, how='left', left_on='id', right_on='id', suffixes=('', '_fpr'))
-    merged['xP_final'] = merged['xPts'].fillna(merged['ep_next'].astype(float))
-    # For minutes filter, use mins column from FPL Review, fallback to FPL's own
-    merged['fpr_mins'] = merged['mins'].fillna(merged['minutes'])
+from fplreview_xp import get_fplreview_xp
+...
+
+def merge_fplreview_or_fpl(players, fplreview_df):
+    if fplreview_df is not None:
+        merged = pd.merge(players, fplreview_df, how='left', left_on='id', right_on='id', suffixes=('', '_fpr'))
+        merged['xP_final'] = merged['xPts'].fillna(merged['ep_next'].astype(float))
+        # For minutes filter, use mins column from FPL Review, fallback to FPL's own
+        merged['fpr_mins'] = merged['mins'].fillna(merged['minutes'])
+    else:
+        merged = players.copy()
+        merged['xP_final'] = merged['ep_next'].astype(float)
+        merged['fpr_mins'] = merged['minutes']
     return merged
+
+...
+
+if __name__ == "__main__":
+    picks, bank, chips_available = fetch_user_team(TEAM_ID)
+    players, teams, positions = fetch_fpl_data()
+    fplreview_df = get_fplreview_xp()
+    players = merge_fplreview_or_fpl(players, fplreview_df)
+    ...
 
 def get_current_team_ids(picks):
     return [p['element'] for p in picks]
