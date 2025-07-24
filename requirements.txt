@@ -1,6 +1,5 @@
 pandas
 requests
 pulp
-understat
 aiohttp
 nest_asyncio
