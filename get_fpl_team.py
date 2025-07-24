@@ -16,5 +16,5 @@ def fetch_user_team(team_id):
     picks = data["picks"]
     bank = data["transfers"]["bank"] / 10.0  # tenths of a million
     transfers = data["transfers"]["limit"]
-    chips_available = [chip for chip in data.get("chips", []) if chip["played"] is False]
+    chips_available = [chip for chip in data.get("chips", []) if chip.get("played") is False]
     return picks, bank, chips_available
