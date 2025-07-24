@@ -1,11 +1,9 @@
-# --- fpl_optimizer.py ---
 import pandas as pd
 import requests
 from pulp import *
-from config import TEAM_ID, SHEET_NAME, N_WEEKS, MAX_HITS_PER_GW
+from config import TEAM_ID, N_WEEKS, MAX_HITS_PER_GW
 from get_fpl_team import fetch_user_team
 from understat_xp import get_understat_xgxa
-from sheets_output import write_transfer_plan, write_best_xi
 import itertools
 
 def fetch_fpl_data():
@@ -37,7 +35,6 @@ def squad_points(squad, captain_id):
     return base + cap
 
 def optimize_transfers(squad_ids, bank, players, teams, positions, understat_df, allowed_transfers=1, max_hits=1):
-    # This function can be made more advanced but keeps things simple for now
     current_team = players[players["id"].isin(squad_ids)].copy()
     possible_ins = players[~players["id"].isin(squad_ids)].copy().sort_values("xP_final", ascending=False)
     best_move = {"score": -999, "outs": [], "ins": [], "new_squad": squad_ids}
@@ -50,7 +47,6 @@ def optimize_transfers(squad_ids, bank, players, teams, positions, understat_df,
                 if len(new_ids) != 15:
                     continue
                 new_squad = players[players["id"].isin(new_ids)]
-                # Position, club, and price constraints should go here
                 cost = new_squad["now_cost"].sum() / 10
                 if cost > 100 + bank:
                     continue
@@ -114,6 +110,22 @@ if __name__ == "__main__":
             "xp": row["xP_final"]
         } for idx, row in best_xi.iterrows()]
         best_xi_list.append(xi_list)
-    write_transfer_plan(SHEET_NAME, transfer_plans)
-    write_best_xi(SHEET_NAME, best_xi_list)
-    print("Optimization complete and written to Google Sheets.")
+
+    # --- WRITE TO CSV FILES ---
+    # 1. Transfer Plan
+    tp_df = pd.DataFrame(transfer_plans)
+    # For nice CSV, join the lists:
+    tp_df["transfers_out"] = tp_df["transfers_out"].apply(lambda x: ", ".join(x))
+    tp_df["transfers_in"] = tp_df["transfers_in"].apply(lambda x: ", ".join(x))
+    tp_df.to_csv("transfer_plan.csv", index=False)
+
+    # 2. Best XI
+    flat = []
+    for gw, xi in enumerate(best_xi_list, 1):
+        for row in xi:
+            row2 = row.copy()
+            row2['GW'] = gw
+            flat.append(row2)
+    pd.DataFrame(flat).to_csv("best_possible_xi.csv", index=False)
+
+    print("CSV output complete. Files: transfer_plan.csv, best_possible_xi.csv")
