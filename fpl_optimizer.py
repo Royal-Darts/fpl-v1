@@ -3,7 +3,7 @@ import requests
 from pulp import *
 from config import TEAM_ID, N_WEEKS, MAX_HITS_PER_GW
 from get_fpl_team import fetch_user_team
-from understat_xp import get_understat_xgxa
+from fplreview_xp import get_fplreview_xp
 import itertools
 
 def fetch_fpl_data():
@@ -14,16 +14,13 @@ def fetch_fpl_data():
     positions = pd.DataFrame(data['element_types'])
     return players, teams, positions
 
-def merge_xgxa(players, understat_df):
+def merge_fplreview(players, fplreview_df):
+    # fplreview: id, web_name, xPts, mins, etc. "id" matches "id" in FPL API
     players = players.copy()
-    players['norm_name'] = players['web_name'].str.lower().str.replace('.', '', regex=False).str.replace('-', ' ', regex=False).str.replace('_', ' ', regex=False).str.strip()
-    if not understat_df.empty:
-        understat_df['norm_name'] = understat_df['web_name'].str.lower().str.replace('.', '', regex=False).str.replace('-', ' ', regex=False).str.replace('_', ' ', regex=False).str.strip()
-        merged = pd.merge(players, understat_df, how='left', left_on='norm_name', right_on='norm_name', suffixes=('', '_us'))
-        merged['xP_final'] = merged['xP'].fillna(merged['ep_next'].astype(float))
-    else:
-        merged = players
-        merged['xP_final'] = merged['ep_next'].astype(float)
+    merged = pd.merge(players, fplreview_df, how='left', left_on='id', right_on='id', suffixes=('', '_fpr'))
+    merged['xP_final'] = merged['xPts'].fillna(merged['ep_next'].astype(float))
+    # For minutes filter, use mins column from FPL Review, fallback to FPL's own
+    merged['fpr_mins'] = merged['mins'].fillna(merged['minutes'])
     return merged
 
 def get_current_team_ids(picks):
@@ -34,7 +31,8 @@ def squad_points(squad, captain_id):
     cap = squad[squad["id"] == captain_id]["xP_final"].values[0] if captain_id in squad["id"].values else 0
     return base + cap
 
-def optimize_transfers(squad_ids, bank, players, teams, positions, understat_df, allowed_transfers=1, max_hits=1):
+def optimize_transfers(squad_ids, bank, players, teams, positions, allowed_transfers=1, max_hits=1):
+    # Simple but safe: optimize transfers by element ID only, only PL players
     current_team = players[players["id"].isin(squad_ids)].copy()
     possible_ins = players[~players["id"].isin(squad_ids)].copy().sort_values("xP_final", ascending=False)
     best_move = {"score": -999, "outs": [], "ins": [], "new_squad": squad_ids}
@@ -47,6 +45,7 @@ def optimize_transfers(squad_ids, bank, players, teams, positions, understat_df,
                 if len(new_ids) != 15:
                     continue
                 new_squad = players[players["id"].isin(new_ids)]
+                # Constraint checks could go here (club, price, positions)
                 cost = new_squad["now_cost"].sum() / 10
                 if cost > 100 + bank:
                     continue
@@ -78,18 +77,23 @@ def best_xi_for_gw(players, teams, positions):
 if __name__ == "__main__":
     picks, bank, chips_available = fetch_user_team(TEAM_ID)
     players, teams, positions = fetch_fpl_data()
-    understat_df = get_understat_xgxa()
-    players = merge_xgxa(players, understat_df)
+    fplreview_df = get_fplreview_xp()
+    players = merge_fplreview(players, fplreview_df)
     squad_ids = get_current_team_ids(picks)
     transfer_plans = []
     best_xi_list = []
     current_ids = squad_ids[:]
     current_bank = bank
     for gw in range(1, N_WEEKS+1):
-        move = optimize_transfers(current_ids, current_bank, players, teams, positions, understat_df, allowed_transfers=1, max_hits=MAX_HITS_PER_GW)
+        move = optimize_transfers(current_ids, current_bank, players, teams, positions, allowed_transfers=1, max_hits=MAX_HITS_PER_GW)
         new_ids = move["new_squad"]
         squad_df = players[players["id"].isin(new_ids)]
-        captain_id = squad_df.sort_values("xP_final", ascending=False).iloc[0]["id"]
+        # Captain logic: highest xP, >60min projected, else fallback
+        eligible = squad_df[squad_df["fpr_mins"] > 60]
+        if not eligible.empty:
+            captain_id = eligible.sort_values("xP_final", ascending=False).iloc[0]["id"]
+        else:
+            captain_id = squad_df.sort_values("xP_final", ascending=False).iloc[0]["id"]
         captain_name = squad_df[squad_df["id"]==captain_id]["web_name"].values[0]
         ft_hit = "1FT" if len(move["outs"]) == 1 else "1FT+Hit"
         transfer_plans.append({
@@ -114,7 +118,6 @@ if __name__ == "__main__":
     # --- WRITE TO CSV FILES ---
     # 1. Transfer Plan
     tp_df = pd.DataFrame(transfer_plans)
-    # For nice CSV, join the lists:
     tp_df["transfers_out"] = tp_df["transfers_out"].apply(lambda x: ", ".join(x))
     tp_df["transfers_in"] = tp_df["transfers_in"].apply(lambda x: ", ".join(x))
     tp_df.to_csv("transfer_plan.csv", index=False)
