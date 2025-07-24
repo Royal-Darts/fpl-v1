@@ -3,4 +3,6 @@ requests
 gspread
 oauth2client
 pulp
-understatapi
+understat
+aiohttp
+nest_asyncio
