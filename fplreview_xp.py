@@ -3,10 +3,6 @@ import requests
 import pandas as pd
 
 def get_fplreview_xp():
-    """
-    Downloads latest FPL Review projections and returns as a DataFrame.
-    Returns None if not available.
-    """
     url = "https://fplreview.com/api/planner/projections/latest"
     try:
         r = requests.get(url)
