@@ -1,7 +1,6 @@
 # --- sheets_output.py ---
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-import pandas as pd
 import os
 import json
 
@@ -15,38 +14,47 @@ def get_gsheets_client():
     client = gspread.authorize(creds)
     return client
 
-def write_plan_to_sheets(sheet_name, weekly_plans, squads_by_week):
+def write_transfer_plan(sheet_name, transfer_plans):
     client = get_gsheets_client()
     try:
         ss = client.open(sheet_name)
     except Exception as e:
         raise Exception(f"Could not open sheet '{sheet_name}': {e}")
-    # Weekly Plan Tab
-    if "GW Plan" in [ws.title for ws in ss.worksheets()]:
-        ss.worksheet("GW Plan").clear()
-        plan_ws = ss.worksheet("GW Plan")
+    # Transfer Plan Tab
+    ws_title = "Transfer Plan"
+    if ws_title in [ws.title for ws in ss.worksheets()]:
+        ss.worksheet(ws_title).clear()
+        plan_ws = ss.worksheet(ws_title)
     else:
-        plan_ws = ss.add_worksheet(title="GW Plan", rows="100", cols="10")
-    headers = ["GW", "Transfers Out", "Transfers In", "Chip", "Captain", "Total xP"]
+        plan_ws = ss.add_worksheet(title=ws_title, rows="100", cols="10")
+    headers = ["GW", "Transfers Out", "Transfers In", "FT/Hits Used", "Captain", "Exp. Points", "Chip (Manual)"]
     plan_ws.append_row(headers)
-    for week in weekly_plans:
+    for week in transfer_plans:
         plan_ws.append_row([
             week["GW"],
             ', '.join(week["transfers_out"]),
             ', '.join(week["transfers_in"]),
-            week["chip"] if week["chip"] else "",
+            week["ft_hit"],
             week["captain"],
-            round(week["xp"],2)
+            round(week["xp"],2),
+            week["chip"] if week.get("chip") else ""
         ])
-    # Squad By Week Tab
-    if "Squad By Week" in [ws.title for ws in ss.worksheets()]:
-        ss.worksheet("Squad By Week").clear()
-        squad_ws = ss.worksheet("Squad By Week")
+
+def write_best_xi(sheet_name, best_xi_list):
+    client = get_gsheets_client()
+    try:
+        ss = client.open(sheet_name)
+    except Exception as e:
+        raise Exception(f"Could not open sheet '{sheet_name}': {e}")
+    ws_title = "Best Possible XI"
+    if ws_title in [ws.title for ws in ss.worksheets()]:
+        ss.worksheet(ws_title).clear()
+        xi_ws = ss.worksheet(ws_title)
     else:
-        squad_ws = ss.add_worksheet(title="Squad By Week", rows="500", cols="10")
-    squad_ws.append_row(["GW", "Pos", "Player", "Team", "xP"])
-    for gw, squad in enumerate(squads_by_week, 1):
+        xi_ws = ss.add_worksheet(title=ws_title, rows="200", cols="10")
+    xi_ws.append_row(["GW", "Pos", "Player", "Team", "xP"])
+    for gw, squad in enumerate(best_xi_list, 1):
         for p in squad:
-            squad_ws.append_row([
+            xi_ws.append_row([
                 gw, p["pos"], p["name"], p["team"], round(p["xp"],2)
             ])
