@@ -18,10 +18,14 @@ def fetch_fpl_data():
 
 def merge_xgxa(players, understat_df):
     players = players.copy()
-    players['web_name'] = players['web_name'].str.lower()
-    understat_df['web_name'] = understat_df['web_name'].str.lower()
-    merged = pd.merge(players, understat_df, how='left', on='web_name', suffixes=('', '_us'))
-    merged['xP_final'] = merged['xP'].fillna(merged['ep_next'].astype(float))
+    players['norm_name'] = players['web_name'].str.lower().str.replace('.', '', regex=False).str.replace('-', ' ', regex=False).str.replace('_', ' ', regex=False).str.strip()
+    if not understat_df.empty:
+        understat_df['norm_name'] = understat_df['web_name'].str.lower().str.replace('.', '', regex=False).str.replace('-', ' ', regex=False).str.replace('_', ' ', regex=False).str.strip()
+        merged = pd.merge(players, understat_df, how='left', left_on='norm_name', right_on='norm_name', suffixes=('', '_us'))
+        merged['xP_final'] = merged['xP'].fillna(merged['ep_next'].astype(float))
+    else:
+        merged = players
+        merged['xP_final'] = merged['ep_next'].astype(float)
     return merged
 
 def get_current_team_ids(picks):
